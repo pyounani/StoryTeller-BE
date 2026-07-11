@@ -75,10 +75,11 @@ public class RedisService {
                 "local val = redis.call('GET', KEYS[1])\n" +
                 "if val then redis.call('DEL', KEYS[1]) end\n" +
                 "return val";
-        return (String) redisTemplate.execute(
+        String result = (String) redisTemplate.execute(
                 new DefaultRedisScript<>(luaScript, String.class),
                 List.of(key)
         );
+        return result != null ? result : "false";
     }
 
     /**

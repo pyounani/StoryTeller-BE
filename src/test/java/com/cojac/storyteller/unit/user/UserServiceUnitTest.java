@@ -231,7 +231,8 @@ public class UserServiceUnitTest {
         when(jwtUtil.getCategory(refreshToken)).thenReturn("refresh");
         when(localUserRepository.findByUsername(username)).thenReturn(Optional.of(mockUser));
         String refreshTokenKey = REFRESH_TOKEN_PREFIX + username;
-        when(redisService.checkExistsValue(refreshTokenKey)).thenReturn(true);
+        when(redisService.getAndDelete(refreshTokenKey)).thenReturn(refreshToken);
+        when(redisService.checkExistsValue(refreshToken)).thenReturn(true);
         when(jwtUtil.getUserKey(refreshToken)).thenReturn(username);
         when(jwtUtil.createJwt(any(), any(), any(), any(), any()))
                 .thenReturn("newAccessToken", "newRefreshToken");
@@ -261,7 +262,8 @@ public class UserServiceUnitTest {
         when(jwtUtil.getCategory(refreshToken)).thenReturn("refresh");
         when(socialUserRepository.findByAccountId(accountId)).thenReturn(Optional.of(mockUser));
         String refreshTokenKey = REFRESH_TOKEN_PREFIX + accountId;
-        when(redisService.checkExistsValue(refreshTokenKey)).thenReturn(true);
+        when(redisService.getAndDelete(refreshTokenKey)).thenReturn(refreshToken);
+        when(redisService.checkExistsValue(refreshToken)).thenReturn(true);
         when(jwtUtil.getUserKey(refreshToken)).thenReturn(accountId);
         when(jwtUtil.createJwt(any(), any(), any(), any(), any()))
                 .thenReturn("newAccessToken", "newRefreshToken");
@@ -287,6 +289,47 @@ public class UserServiceUnitTest {
 
         // then
         assertThrows(RequestParsingException.class, executable);
+    }
+
+    @Test
+    @DisplayName("Redis에 토큰이 없을 경우 예외 발생 (getAndDelete → \"false\")")
+    void reissueToken_ShouldThrowException_WhenTokenNotInRedis() {
+        // given
+        String refreshToken = "validRefreshToken";
+        String username = "username";
+        ReissueDTO reissueDTO = new ReissueDTO(username, "someAccountId");
+
+        when(request.getHeader("refresh")).thenReturn(refreshToken);
+        when(jwtUtil.getAuthenticationMethod(refreshToken)).thenReturn("local");
+        when(jwtUtil.getCategory(refreshToken)).thenReturn("refresh");
+        String refreshTokenKey = REFRESH_TOKEN_PREFIX + username;
+        when(redisService.getAndDelete(refreshTokenKey)).thenReturn("false"); // 키 없음
+        when(redisService.checkExistsValue("false")).thenReturn(false);
+
+        // when & then
+        assertThrows(RequestParsingException.class,
+                () -> userService.reissueToken(request, response, reissueDTO));
+    }
+
+    @Test
+    @DisplayName("Redis 저장 토큰과 요청 토큰이 다를 경우 예외 발생 (구 토큰 재사용 차단)")
+    void reissueToken_ShouldThrowException_WhenStoredTokenMismatch() {
+        // given
+        String requestToken = "requestToken";
+        String storedToken = "differentToken"; // 다른 기기에서 재발급된 최신 토큰
+        String username = "username";
+        ReissueDTO reissueDTO = new ReissueDTO(username, "someAccountId");
+
+        when(request.getHeader("refresh")).thenReturn(requestToken);
+        when(jwtUtil.getAuthenticationMethod(requestToken)).thenReturn("local");
+        when(jwtUtil.getCategory(requestToken)).thenReturn("refresh");
+        String refreshTokenKey = REFRESH_TOKEN_PREFIX + username;
+        when(redisService.getAndDelete(refreshTokenKey)).thenReturn(storedToken);
+        when(redisService.checkExistsValue(storedToken)).thenReturn(true);
+
+        // when & then
+        assertThrows(RequestParsingException.class,
+                () -> userService.reissueToken(request, response, reissueDTO));
     }
 
     /**
