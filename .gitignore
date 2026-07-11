@@ -43,3 +43,6 @@ out/
 /src/test/resources/application.yml
 /src/test/resources/application-secret.yml
 /src/test/java/com/cojac/storyteller/performance
+
+### personal ###
+TODO.md

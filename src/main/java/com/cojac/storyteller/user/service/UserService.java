@@ -222,55 +222,54 @@ public class UserService {
     }
 
     private UserDTO authenticateLocalUser(HttpServletResponse response, ReissueDTO reissueDTO, String refreshToken) {
+        String refreshTokenKey = REFRESH_TOKEN_PREFIX + reissueDTO.getUsername();
 
-        // redis 에 저장되어 있는지 확인
-        String refreshTokenKey = hasValueInRedis(reissueDTO.getUsername());
+        // 원자적 GET+DEL: 동시 요청 중 첫 번째만 storedToken을 가져감 (Race Condition 방지)
+        // 저장된 토큰과 요청 토큰 비교로 구 토큰 재사용 차단
+        String storedToken = redisService.getAndDelete(refreshTokenKey);
+        if (!redisService.checkExistsValue(storedToken) || !storedToken.equals(refreshToken)) {
+            throw new RequestParsingException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
 
         String username = jwtUtil.getUserKey(refreshToken);
         String role = jwtUtil.getRole(refreshToken);
 
-        // Access token 생성
         String newAccess = jwtUtil.createJwt("local", "access", username, role, ACCESS_TOKEN_EXPIRATION);
         String newRefresh = jwtUtil.createJwt("local", "refresh", username, role, REFRESH_TOKEN_EXPIRATION);
 
-        //Refresh 토큰 저장 DB에 기존의 Refresh 토큰 삭제 후 새 Refresh 토큰 저장
-        redisService.deleteValues(refreshTokenKey);
-        redisService.setValues(refreshTokenKey, newRefresh);
+        // TTL 포함 저장 — 재발급 후에도 14일 만료 유지
+        redisService.setValues(refreshTokenKey, newRefresh, Duration.ofMillis(REFRESH_TOKEN_EXPIRATION));
 
-        //response
         response.setHeader("access", newAccess);
         response.setHeader("refresh", newRefresh);
 
         LocalUserEntity userEntity = localUserRepository.findByUsername(username)
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND));
 
-        UserDTO userDTO = LocalUserDTO.builder()
+        return LocalUserDTO.builder()
                 .id(userEntity.getId())
                 .username(username)
-                .email("email")
+                .email(userEntity.getEmail())
                 .role(role)
                 .build();
-
-        return userDTO;
     }
 
     private UserDTO authenticateSocialUser(HttpServletResponse response, ReissueDTO reissueDTO, String refreshToken) {
+        String refreshTokenKey = REFRESH_TOKEN_PREFIX + reissueDTO.getAccountId();
 
-        // redis 에 저장되어 있는지 확인
-        String refreshTokenKey = hasValueInRedis(reissueDTO.getAccountId());
+        String storedToken = redisService.getAndDelete(refreshTokenKey);
+        if (!redisService.checkExistsValue(storedToken) || !storedToken.equals(refreshToken)) {
+            throw new RequestParsingException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
 
         String accountId = jwtUtil.getUserKey(refreshToken);
         String role = jwtUtil.getRole(refreshToken);
 
-        // Access token 생성
         String newAccess = jwtUtil.createJwt("social", "access", accountId, role, ACCESS_TOKEN_EXPIRATION);
         String newRefresh = jwtUtil.createJwt("social", "refresh", accountId, role, REFRESH_TOKEN_EXPIRATION);
 
-        //Refresh 토큰 저장 DB에 기존의 Refresh 토큰 삭제 후 새 Refresh 토큰 저장
-        redisService.deleteValues(refreshTokenKey);
-        redisService.setValues(refreshTokenKey, newRefresh);
+        redisService.setValues(refreshTokenKey, newRefresh, Duration.ofMillis(REFRESH_TOKEN_EXPIRATION));
 
-        //response
         response.setHeader("access", newAccess);
         response.setHeader("refresh", newRefresh);
 
@@ -278,14 +277,6 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException(ErrorCode.USER_NOT_FOUND));
 
         return SocialUserDTO.mapToSocialUserDTO(socialUserEntity);
-    }
-
-    private String hasValueInRedis(String userKey) {
-        String refreshTokenKey = REFRESH_TOKEN_PREFIX + userKey;
-        if (!redisService.checkExistsValue(refreshTokenKey)) {
-            throw new RequestParsingException(ErrorCode.TOKEN_EXPIRED);
-        }
-        return refreshTokenKey;
     }
 
     private void checkDuplicatedEmail(String email) {
