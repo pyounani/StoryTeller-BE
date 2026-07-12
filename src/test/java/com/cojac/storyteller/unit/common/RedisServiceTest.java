@@ -15,7 +15,6 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -186,24 +185,24 @@ class RedisServiceTest {
     }
 
     @Test
-    @DisplayName("Lua 스크립트로 키 값을 조회하고 즉시 삭제")
+    @DisplayName("GETDEL 명령어로 키 값을 조회하고 즉시 삭제")
     void getAndDelete_ShouldReturnValueAndDelete_WhenKeyExists() {
         // given
-        when(redisTemplate.execute(any(), eq(List.of("testKey")))).thenReturn("storedToken");
+        when(valueOperations.getAndDelete("testKey")).thenReturn("storedToken");
 
         // when
         String result = redisService.getAndDelete("testKey");
 
         // then
         assertEquals("storedToken", result);
-        verify(redisTemplate).execute(any(), eq(List.of("testKey")));
+        verify(valueOperations).getAndDelete("testKey");
     }
 
     @Test
     @DisplayName("키가 없을 때 getAndDelete는 \"false\" 반환 (checkExistsValue NPE 방지)")
     void getAndDelete_ShouldReturnFalse_WhenKeyNotExists() {
         // given
-        when(redisTemplate.execute(any(), eq(List.of("nonExistingKey")))).thenReturn(null);
+        when(valueOperations.getAndDelete("nonExistingKey")).thenReturn(null);
 
         // when
         String result = redisService.getAndDelete("nonExistingKey");
@@ -216,7 +215,7 @@ class RedisServiceTest {
     @DisplayName("Redis 장애 시 getAndDelete는 예외를 잡지 않고 그대로 전파")
     void getAndDelete_ShouldPropagateException_WhenRedisIsDown() {
         // given
-        when(redisTemplate.execute(any(), eq(List.of("testKey"))))
+        when(valueOperations.getAndDelete("testKey"))
                 .thenThrow(new RedisConnectionFailureException("Unable to connect to Redis"));
 
         // when & then

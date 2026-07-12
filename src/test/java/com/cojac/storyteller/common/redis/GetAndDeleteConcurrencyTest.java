@@ -16,10 +16,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 통합 테스트: 비원자적 GET+DEL vs Lua 원자적 GET+DEL 동시성 비교
+ * 통합 테스트: 비원자적 GET+DEL vs GETDEL 명령어 기반 원자적 GET+DEL 동시성 비교
  *
  * - 테스트 1: 구 코드 방식(getValues → deleteValues 분리) 재현 → Race Condition으로 중복 발급 발생
- * - 테스트 2: Lua getAndDelete → 정확히 1개 스레드만 토큰 획득 (중복 발급 0회)
+ * - 테스트 2: GETDEL 기반 getAndDelete → 정확히 1개 스레드만 토큰 획득 (중복 발급 0회)
  *
  */
 @SpringBootTest
@@ -72,9 +72,9 @@ class GetAndDeleteConcurrencyTest {
     }
 
     @Test
-    @DisplayName("Lua 원자적 GET+DEL: 중복 발급 0회")
-    void luaGetAndDelete_ZeroDuplicates() throws InterruptedException {
-        String key = "test:concurrency:lua";
+    @DisplayName("GETDEL 원자적 GET+DEL: 중복 발급 0회")
+    void atomicGetDel_ZeroDuplicates() throws InterruptedException {
+        String key = "test:concurrency:getdel";
         String token = "token_v1";
         redisService.setValues(key, token, Duration.ofMinutes(5));
 
@@ -87,7 +87,7 @@ class GetAndDeleteConcurrencyTest {
             pool.submit(() -> {
                 try {
                     start.await();
-                    // 원자적: Lua 스크립트로 GET+DEL 단일 명령 실행 → 정확히 1개 스레드만 토큰 획득
+                    // 원자적: GETDEL 명령어로 GET+DEL 단일 명령 실행 → 정확히 1개 스레드만 토큰 획득
                     String stored = redisService.getAndDelete(key);
                     if (redisService.checkExistsValue(stored) && token.equals(stored)) {
                         successCount.incrementAndGet();
@@ -104,9 +104,9 @@ class GetAndDeleteConcurrencyTest {
         done.await(10, TimeUnit.SECONDS);
         pool.shutdown();
 
-        log.info("[Lua 원자 GET+DEL] {}회 동시 요청 → 중복 발급 0회, 정상 발급 {}회",
+        log.info("[GETDEL 원자 GET+DEL] {}회 동시 요청 → 중복 발급 0회, 정상 발급 {}회",
                 THREAD_COUNT, successCount.get());
         assertEquals(1, successCount.get(),
-                "Lua 원자 연산: 30회 동시 요청 중 정확히 1개 스레드만 토큰을 획득해야 합니다.");
+                "GETDEL 원자 연산: 30회 동시 요청 중 정확히 1개 스레드만 토큰을 획득해야 합니다.");
     }
 }

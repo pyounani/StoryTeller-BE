@@ -5,12 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -65,21 +63,15 @@ public class RedisService {
     }
 
     /**
-     * 키에 해당하는 값을 조회하고 즉시 삭제 (Lua 스크립트로 원자적 실행)
+     * 키에 해당하는 값을 조회하고 즉시 삭제 (Redis GETDEL 명령어로 원자적 실행, Redis 6.2+)
      * GET + DEL을 단일 명령으로 묶어 동시 재발급 요청의 Race Condition 방지
      * @param key 조회 및 삭제할 키
-     * @return 키에 해당하는 값, 없으면 null
+     * @return 키에 해당하는 값, 없으면 "false"
      */
     public String getAndDelete(String key) {
-        String luaScript =
-                "local val = redis.call('GET', KEYS[1])\n" +
-                "if val then redis.call('DEL', KEYS[1]) end\n" +
-                "return val";
-        String result = (String) redisTemplate.execute(
-                new DefaultRedisScript<>(luaScript, String.class),
-                List.of(key)
-        );
-        return result != null ? result : "false";
+        ValueOperations<String, Object> values = redisTemplate.opsForValue();
+        Object result = values.getAndDelete(key);
+        return result != null ? (String) result : "false";
     }
 
     /**
