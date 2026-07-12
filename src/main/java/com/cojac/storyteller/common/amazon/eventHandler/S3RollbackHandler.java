@@ -27,8 +27,13 @@ public class S3RollbackHandler {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_ROLLBACK)
     public void rollbackS3(UploadS3Event event) {
-        S3DeleteFile s3DeleteFile = S3DeleteFile.create(event.objectPath(), event.getFileName());
-        s3DeleteFileRepository.save(s3DeleteFile);
+        try {
+            S3DeleteFile s3DeleteFile = S3DeleteFile.create(event.objectPath(), event.getFileName());
+            s3DeleteFileRepository.save(s3DeleteFile);
+        } catch (Exception e) {
+            log.error("[S3RollbackHandler] S3 삭제 큐 저장 실패 - objectPath: {}, fileUid: {}",
+                    event.objectPath(), event.getFileName(), e);
+        }
     }
 }
 

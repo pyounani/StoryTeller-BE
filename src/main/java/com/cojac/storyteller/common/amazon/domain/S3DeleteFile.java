@@ -25,6 +25,9 @@ public class S3DeleteFile {
     @Column(name = "file_uid", nullable = false, length = 255)
     private String fileUid; // 파일 식별자
 
+    @Column(name = "processed_at")
+    private LocalDateTime processedAt; // 삭제 처리 완료 일시 (null이면 미처리)
+
     /**
      * S3DeleteFile 객체 생성
      */
@@ -34,5 +37,9 @@ public class S3DeleteFile {
         s3DeleteFile.fileUid = fileUid;
         s3DeleteFile.createdDateTime = LocalDateTime.now();
         return s3DeleteFile;
+    }
+
+    public void markProcessed() {
+        this.processedAt = LocalDateTime.now();
     }
 }
