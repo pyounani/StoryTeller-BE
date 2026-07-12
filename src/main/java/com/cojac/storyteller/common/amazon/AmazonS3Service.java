@@ -81,6 +81,24 @@ public class AmazonS3Service {
     }
 
     /**
+     * S3 삭제 - 이미 삭제되어 없는 경우(404)만 성공으로 간주하고,
+     * 그 외 실패(권한/네트워크/파싱 오류 등)는 호출자에게 그대로 전파한다.
+     * S3CleanupScheduler처럼 "진짜 실패"와 "이미 처리됨"을 구분해야 하는 호출자 전용.
+     */
+    public void deleteS3Idempotent(String filePath) {
+        String key = filePath.substring(filePath.indexOf(bucket) + bucket.length() + 1);
+        try {
+            amazonS3Client.deleteObject(bucket, key);
+        } catch (AmazonServiceException e) {
+            if (e.getStatusCode() == 404) {
+                log.info("[S3Uploader] : 이미 삭제된 파일 - key: {}", key);
+                return;
+            }
+            throw e;
+        }
+    }
+
+    /**
      * S3에서 특정 경로에 있는 사진 목록 가져오기
      *
      * @param folderPath

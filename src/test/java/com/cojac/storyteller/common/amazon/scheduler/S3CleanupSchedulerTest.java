@@ -37,7 +37,7 @@ class S3CleanupSchedulerTest {
 
     @Test
     @DisplayName("미처리 건이 100건을 초과해도 청크 단위로 모두 삭제 처리된다")
-    void cleanupOrphanedS3Files_ProcessesAllRowsAcrossChunks() throws Exception {
+    void cleanupOrphanedS3Files_ProcessesAllRowsAcrossChunks() {
         // given
         List<S3DeleteFile> unprocessed = createUnprocessedFiles(150);
         when(s3DeleteFileRepository.findByProcessedAtIsNull()).thenReturn(unprocessed);
@@ -46,19 +46,19 @@ class S3CleanupSchedulerTest {
         s3CleanupScheduler.cleanupOrphanedS3Files();
 
         // then
-        verify(amazonS3Service, times(150)).deleteS3(anyString());
+        verify(amazonS3Service, times(150)).deleteS3Idempotent(anyString());
         unprocessed.forEach(file -> assertNotNull(file.getProcessedAt()));
     }
 
     @Test
     @DisplayName("한 건의 삭제가 실패해도 같은 청크의 나머지 건은 정상 처리된다")
-    void cleanupOrphanedS3Files_IsolatesFailureWithinChunk() throws Exception {
+    void cleanupOrphanedS3Files_IsolatesFailureWithinChunk() {
         // given
         List<S3DeleteFile> unprocessed = createUnprocessedFiles(3);
         S3DeleteFile failing = unprocessed.get(1);
         when(s3DeleteFileRepository.findByProcessedAtIsNull()).thenReturn(unprocessed);
         lenient().doThrow(new RuntimeException("S3 delete failed"))
-                .when(amazonS3Service).deleteS3(failing.getFilePath());
+                .when(amazonS3Service).deleteS3Idempotent(failing.getFilePath());
 
         // when
         s3CleanupScheduler.cleanupOrphanedS3Files();
@@ -71,7 +71,7 @@ class S3CleanupSchedulerTest {
 
     @Test
     @DisplayName("미처리 건이 없으면 S3 삭제를 호출하지 않는다")
-    void cleanupOrphanedS3Files_DoesNothingWhenQueueEmpty() throws Exception {
+    void cleanupOrphanedS3Files_DoesNothingWhenQueueEmpty() {
         // given
         when(s3DeleteFileRepository.findByProcessedAtIsNull()).thenReturn(new ArrayList<>());
 
@@ -79,7 +79,7 @@ class S3CleanupSchedulerTest {
         s3CleanupScheduler.cleanupOrphanedS3Files();
 
         // then
-        verify(amazonS3Service, never()).deleteS3(anyString());
+        verify(amazonS3Service, never()).deleteS3Idempotent(anyString());
     }
 
     private List<S3DeleteFile> createUnprocessedFiles(int count) {

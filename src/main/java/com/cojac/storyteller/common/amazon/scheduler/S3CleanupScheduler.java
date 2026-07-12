@@ -47,7 +47,7 @@ public class S3CleanupScheduler {
 
     private void deleteAndMark(S3DeleteFile file) {
         try {
-            amazonS3Service.deleteS3(file.getFilePath());
+            amazonS3Service.deleteS3Idempotent(file.getFilePath());
             file.markProcessed();
         } catch (Exception e) {
             log.error("[S3CleanupScheduler] S3 파일 삭제 실패 - fileUid: {}, filePath: {}",
