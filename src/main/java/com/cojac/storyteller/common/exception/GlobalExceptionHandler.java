@@ -8,6 +8,9 @@ import com.cojac.storyteller.response.dto.ErrorResponseDTO;
 import com.cojac.storyteller.unknownWord.exception.UnknownWordNotFoundException;
 import com.cojac.storyteller.user.exception.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.data.redis.RedisSystemException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -138,5 +141,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(e.getErrorCode().getStatus().value())
                 .body(new ErrorResponseDTO(e.getErrorCode()));
+    }
+
+    /**
+     * Redis
+     * RedisConnectionFailureException(연결 장애)과 RedisSystemException(스크립트 실행 등 미분류 오류)은
+     * 서로 형제 관계(공통 부모: DataAccessException)라 두 타입을 명시적으로 나열해서 함께 처리한다.
+     */
+    @ExceptionHandler({RedisConnectionFailureException.class, RedisSystemException.class})
+    protected ResponseEntity<ErrorResponseDTO> handleRedisException(final DataAccessException e) {
+        log.error("handleRedisException : {}", e.getMessage(), e);
+        return ResponseEntity
+                .status(ErrorCode.REDIS_UNAVAILABLE.getStatus().value())
+                .body(new ErrorResponseDTO(ErrorCode.REDIS_UNAVAILABLE));
     }
 }

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -209,5 +210,16 @@ class RedisServiceTest {
 
         // then
         assertEquals("false", result);
+    }
+
+    @Test
+    @DisplayName("Redis 장애 시 getAndDelete는 예외를 잡지 않고 그대로 전파")
+    void getAndDelete_ShouldPropagateException_WhenRedisIsDown() {
+        // given
+        when(redisTemplate.execute(any(), eq(List.of("testKey"))))
+                .thenThrow(new RedisConnectionFailureException("Unable to connect to Redis"));
+
+        // when & then
+        assertThrows(RedisConnectionFailureException.class, () -> redisService.getAndDelete("testKey"));
     }
 }
