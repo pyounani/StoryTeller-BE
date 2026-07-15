@@ -68,7 +68,8 @@ public enum ResponseCode {
      * Credit
      */
     SUCCESS_GET_CREDIT_BALANCE(HttpStatus.OK, "크레딧 잔액을 성공적으로 조회했습니다"),
-    SUCCESS_CHARGE_CREDIT(HttpStatus.OK, "크레딧을 성공적으로 충전했습니다"),
+    SUCCESS_CREATE_ORDER(HttpStatus.CREATED, "결제 주문이 성공적으로 생성되었습니다"),
+    SUCCESS_CONFIRM_PAYMENT(HttpStatus.OK, "크레딧을 성공적으로 충전했습니다"),
 
     /**
      * Custom status for empty data lists

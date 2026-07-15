@@ -26,6 +26,12 @@ public class CreditChargeEntity {
     private ProfileEntity profile;
 
     @Column(nullable = false)
+    private String orderId;
+
+    @Column(nullable = false)
+    private Integer amount;
+
+    @Column(nullable = false)
     private Integer chargeAmount;
 
     @Enumerated(EnumType.STRING)
@@ -34,12 +40,22 @@ public class CreditChargeEntity {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    public static CreditChargeEntity createSuccess(ProfileEntity profile, Integer chargeAmount) {
+    public static CreditChargeEntity createPending(ProfileEntity profile, String orderId, Integer amount, Integer chargeAmount) {
         return CreditChargeEntity.builder()
                 .profile(profile)
+                .orderId(orderId)
+                .amount(amount)
                 .chargeAmount(chargeAmount)
-                .status(ChargeStatus.SUCCESS)
+                .status(ChargeStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .build();
+    }
+
+    public void markSuccess() {
+        this.status = ChargeStatus.SUCCESS;
+    }
+
+    public void markFailed() {
+        this.status = ChargeStatus.FAILED;
     }
 }

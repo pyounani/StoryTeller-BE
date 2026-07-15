@@ -58,6 +58,13 @@ public enum ErrorCode {
     NO_SUCH_ALGORITHM(HttpStatus.INTERNAL_SERVER_ERROR, "내부 서버 오류입니다."),
 
     /**
+     * Payment(토스페이먼츠 결제 연동)
+     */
+    PAYMENT_ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "결제 주문을 찾을 수 없습니다."),
+    PAYMENT_AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "결제 금액이 일치하지 않습니다."),
+    PAYMENT_FAILED(HttpStatus.BAD_GATEWAY, "결제 승인에 실패했습니다."),
+
+    /**
      * 503 SERVICE_UNAVAILABLE: 일시적 서비스 장애
      */
     REDIS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "일시적으로 서비스를 이용할 수 없습니다."),
