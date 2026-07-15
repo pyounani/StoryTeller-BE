@@ -74,6 +74,7 @@ public class ProfileService {
                 .birthDate(profileDTO.getBirthDate())
                 .imageUrl(profileDTO.getImageUrl())
                 .pinNumber(hashedPin)
+                .credit(ProfileEntity.DEFAULT_FREE_CREDIT)
                 .user(user)
                 .build();
 
