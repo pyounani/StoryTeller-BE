@@ -140,6 +140,20 @@ class BookServiceUnitTest {
         verify(openAIService, never()).generateStory(any(), any());
     }
 
+    @Test
+    @DisplayName("동화 생성하기 단위 테스트 - OpenAI 호출 실패 시 차감된 크레딧 환불")
+    void testCreateBook_RefundsCreditWhenOpenAIFails() {
+        // given
+        String prompt = "Create a story";
+        when(profileRepository.findById(profile.getId())).thenReturn(Optional.of(profile));
+        when(profileRepository.deductCreditAtomic(profile.getId())).thenReturn(1);
+        when(openAIService.generateStory(any(), any())).thenThrow(new RuntimeException("OpenAI 호출 실패"));
+
+        // when & then
+        assertThrows(RuntimeException.class, () -> bookService.createBook(prompt, profile.getId()));
+        verify(profileRepository, times(1)).refundCreditAtomic(profile.getId());
+    }
+
     /**
      * 책 목록 조회
      */

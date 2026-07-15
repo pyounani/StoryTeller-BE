@@ -66,33 +66,40 @@ public class BookService {
                 .orElseThrow(() -> new ProfileNotFoundException(ErrorCode.PROFILE_NOT_FOUND));
 
         // 크레딧 확인 및 차감 (원자적 조건부 UPDATE로 동시 요청 시 lost update 방지, Issue 1)
+        // REQUIRES_NEW로 즉시 커밋되므로, 이후 실패 시 outer 트랜잭션 롤백이 아닌 명시적 환불이 필요함
         int updatedRows = profileRepository.deductCreditAtomic(profileId);
         if (updatedRows == 0) {
             throw new InsufficientCreditException(ErrorCode.INSUFFICIENT_CREDIT);
         }
 
-        // 나이를 계산 (birthDate 기준)
-        int age = calculateAge(profile);
+        try {
+            // 나이를 계산 (birthDate 기준)
+            int age = calculateAge(profile);
 
-        // OpenAI 서비스로부터 동화 생성
-        String story = openAIService.generateStory(prompt, age);
-        String title = story.split("Content:")[0].replace("Title:", "").trim();
-        String content = story.split("Content:")[1].trim();
+            // OpenAI 서비스로부터 동화 생성
+            String story = openAIService.generateStory(prompt, age);
+            String title = story.split("Content:")[0].replace("Title:", "").trim();
+            String content = story.split("Content:")[1].trim();
 
-        // 책 표지 이미지 생성 및 S3에 업로드
-        String coverImageUrl = imageGenerationService.generateAndUploadBookCoverImage(title);
-        eventPublisher.publishEvent(new UploadS3Event(coverImageUrl));
+            // 책 표지 이미지 생성 및 S3에 업로드
+            String coverImageUrl = imageGenerationService.generateAndUploadBookCoverImage(title);
+            eventPublisher.publishEvent(new UploadS3Event(coverImageUrl));
 
-        // 책 및 페이지 엔티티 생성
-        BookEntity book = BookMapper.createBookEntity(title, coverImageUrl, profile);
-        List<PageEntity> pages = createPage(book, content);
+            // 책 및 페이지 엔티티 생성
+            BookEntity book = BookMapper.createBookEntity(title, coverImageUrl, profile);
+            List<PageEntity> pages = createPage(book, content);
 
-        // 책 및 페이지 저장
-        BookEntity savedBook = bookRepository.save(book);
-        batchPageInsert.batchInsertPages(pages);
+            // 책 및 페이지 저장
+            BookEntity savedBook = bookRepository.save(book);
+            batchPageInsert.batchInsertPages(pages);
 
-        // 성공적으로 생성된 동화 반환
-        return BookMapper.mapToBookDTO(savedBook, pages);
+            // 성공적으로 생성된 동화 반환
+            return BookMapper.mapToBookDTO(savedBook, pages);
+        } catch (RuntimeException e) {
+            // 크레딧 차감은 이미 커밋되었으므로 보상 환불 (Issue 1 후속: 락 보유 시간 단축의 트레이드오프)
+            profileRepository.refundCreditAtomic(profileId);
+            throw e;
+        }
     }
 
     /**
