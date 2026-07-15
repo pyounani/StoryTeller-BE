@@ -5,6 +5,7 @@ import com.cojac.storyteller.credit.dto.ConfirmPaymentRequest;
 import com.cojac.storyteller.credit.dto.CreditDTO;
 import com.cojac.storyteller.credit.dto.CreditOrderDTO;
 import com.cojac.storyteller.credit.entity.CreditChargeEntity;
+import com.cojac.storyteller.credit.entity.enums.ChargeStatus;
 import com.cojac.storyteller.credit.exception.PaymentAmountMismatchException;
 import com.cojac.storyteller.credit.exception.PaymentFailedException;
 import com.cojac.storyteller.credit.exception.PaymentOrderNotFoundException;
@@ -111,6 +112,7 @@ class CreditServiceUnitTest {
         // given
         CreditChargeEntity order = CreditChargeEntity.createPending(profile, "order-1", 1000, 10);
         when(creditChargeRepository.findByOrderId("order-1")).thenReturn(Optional.of(order));
+        when(creditChargeRepository.compareAndSetStatus("order-1", ChargeStatus.PENDING, ChargeStatus.SUCCESS)).thenReturn(1);
 
         ConfirmPaymentRequest request = ConfirmPaymentRequest.builder()
                 .orderId("order-1")
@@ -125,6 +127,30 @@ class CreditServiceUnitTest {
         assertNotNull(result);
         assertEquals(15, result.getCredit());
         verify(tossPaymentService, times(1)).confirmPayment("payment-key-1", "order-1", 1000);
+    }
+
+    @Test
+    @DisplayName("결제 승인 확정 단위 테스트 - 중복 요청 멱등 재생")
+    void testConfirmCharge_DuplicateRequest_IdempotentReplay() {
+        // given
+        CreditChargeEntity order = CreditChargeEntity.createPending(profile, "order-1", 1000, 10);
+        order.markSuccess(); // 이미 다른 요청이 먼저 처리해 SUCCESS로 종결된 상태를 가정
+        when(creditChargeRepository.findByOrderId("order-1")).thenReturn(Optional.of(order));
+        when(creditChargeRepository.compareAndSetStatus("order-1", ChargeStatus.PENDING, ChargeStatus.SUCCESS)).thenReturn(0);
+
+        ConfirmPaymentRequest request = ConfirmPaymentRequest.builder()
+                .orderId("order-1")
+                .paymentKey("payment-key-1")
+                .amount(1000)
+                .build();
+
+        // when
+        CreditDTO result = creditService.confirmCharge(request);
+
+        // then
+        assertNotNull(result);
+        assertEquals(5, result.getCredit(), "이미 처리된 요청이므로 크레딧이 추가로 지급되지 않고 기존 잔액 그대로여야 합니다.");
+        verify(tossPaymentService, never()).confirmPayment(anyString(), anyString(), any());
     }
 
     @Test
@@ -169,6 +195,7 @@ class CreditServiceUnitTest {
         // given
         CreditChargeEntity order = CreditChargeEntity.createPending(profile, "order-1", 1000, 10);
         when(creditChargeRepository.findByOrderId("order-1")).thenReturn(Optional.of(order));
+        when(creditChargeRepository.compareAndSetStatus("order-1", ChargeStatus.PENDING, ChargeStatus.SUCCESS)).thenReturn(1);
         when(tossPaymentService.confirmPayment("payment-key-1", "order-1", 1000))
                 .thenThrow(new PaymentFailedException(ErrorCode.PAYMENT_FAILED));
 
