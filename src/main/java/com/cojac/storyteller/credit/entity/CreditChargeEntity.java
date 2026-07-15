@@ -25,7 +25,7 @@ public class CreditChargeEntity {
     @JoinColumn(name = "profile_id", nullable = false)
     private ProfileEntity profile;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String orderId;
 
     @Column(nullable = false)
