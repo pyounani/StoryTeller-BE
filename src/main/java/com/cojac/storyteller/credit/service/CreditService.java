@@ -8,6 +8,7 @@ import com.cojac.storyteller.credit.entity.CreditChargeEntity;
 import com.cojac.storyteller.credit.entity.enums.ChargeStatus;
 import com.cojac.storyteller.credit.exception.PaymentAmountMismatchException;
 import com.cojac.storyteller.credit.exception.PaymentFailedException;
+import com.cojac.storyteller.credit.event.PaymentConfirmedEvent;
 import com.cojac.storyteller.credit.exception.PaymentOrderNotFoundException;
 import com.cojac.storyteller.credit.repository.CreditChargeRepository;
 import com.cojac.storyteller.profile.entity.ProfileEntity;
@@ -15,6 +16,7 @@ import com.cojac.storyteller.profile.exception.ProfileNotFoundException;
 import com.cojac.storyteller.profile.repository.ProfileRepository;
 import com.cojac.storyteller.response.code.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class CreditService {
     private final ProfileRepository profileRepository;
     private final CreditChargeRepository creditChargeRepository;
     private final TossPaymentService tossPaymentService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 크레딧 잔액 조회
@@ -89,10 +92,7 @@ public class CreditService {
             throw new PaymentFailedException(ErrorCode.PAYMENT_FAILED);
         }
 
-        // 이 요청이 PENDING -> SUCCESS 전이에 성공한 유일한 요청 - CAS로 영속성 컨텍스트가 비워졌으므로 재조회
-        CreditChargeEntity claimedOrder = creditChargeRepository.findByOrderId(request.getOrderId())
-                .orElseThrow(() -> new PaymentOrderNotFoundException(ErrorCode.PAYMENT_ORDER_NOT_FOUND));
-
+        // 이 요청이 PENDING -> SUCCESS 전이에 성공한 유일한 요청
         try {
             tossPaymentService.confirmPayment(request.getPaymentKey(), request.getOrderId(), request.getAmount());
         } catch (PaymentFailedException e) {
@@ -100,9 +100,20 @@ public class CreditService {
             throw e;
         }
 
-        ProfileEntity profile = claimedOrder.getProfile();
-        profile.chargeCredit(claimedOrder.getChargeAmount());
+        // 토스 승인 성공 - 이 시점 이후(크레딧 반영 중) 트랜잭션이 롤백되면 "결제는 됐는데 크레딧 미반영"
+        // 상태가 될 수 있으므로, 롤백 시 PaymentRollbackHandler가 보상 기록을 남기도록 이벤트 발행 (Issue 3)
+        eventPublisher.publishEvent(new PaymentConfirmedEvent(request.getOrderId()));
 
-        return CreditDTO.toDto(profile);
+        // applyCreditAtomic도 clearAutomatically=true라 영속성 컨텍스트가 비워지므로 재조회 필요.
+        // 메인 경로와 PaymentCreditScheduler 복구 경로가 같은 orderId를 동시에 처리해도 이 CAS가
+        // 단 한쪽만 적립을 수행하도록 보장한다
+        int applied = creditChargeRepository.applyCreditAtomic(request.getOrderId());
+        CreditChargeEntity current = creditChargeRepository.findByOrderId(request.getOrderId())
+                .orElseThrow(() -> new PaymentOrderNotFoundException(ErrorCode.PAYMENT_ORDER_NOT_FOUND));
+        if (applied == 1) {
+            current.getProfile().chargeCredit(current.getChargeAmount());
+        }
+
+        return CreditDTO.toDto(current.getProfile());
     }
 }

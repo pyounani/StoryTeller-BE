@@ -23,4 +23,13 @@ public interface CreditChargeRepository extends JpaRepository<CreditChargeEntity
     int compareAndSetStatus(@Param("orderId") String orderId,
                              @Param("expectedStatus") ChargeStatus expectedStatus,
                              @Param("newStatus") ChargeStatus newStatus);
+
+    /**
+     * 크레딧 적립을 원자적으로 선점 (Issue 3: 메인 경로와 PaymentCreditScheduler 복구 경로가
+     * 동시에 같은 주문을 처리해도 크레딧이 중복 적립되지 않도록, orderId를 멱등키로 삼아
+     * 단 한쪽만 적립을 수행하도록 만드는 CAS. 영향 행이 0이면 이미 다른 실행이 적립을 마쳤다는 뜻)
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE CreditChargeEntity c SET c.creditAppliedAt = CURRENT_TIMESTAMP WHERE c.orderId = :orderId AND c.creditAppliedAt IS NULL")
+    int applyCreditAtomic(@Param("orderId") String orderId);
 }

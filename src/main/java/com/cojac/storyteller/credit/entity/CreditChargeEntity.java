@@ -40,6 +40,9 @@ public class CreditChargeEntity {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = true)
+    private LocalDateTime creditAppliedAt;
+
     public static CreditChargeEntity createPending(ProfileEntity profile, String orderId, Integer amount, Integer chargeAmount) {
         return CreditChargeEntity.builder()
                 .profile(profile)
