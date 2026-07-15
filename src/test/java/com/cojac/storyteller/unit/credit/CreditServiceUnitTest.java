@@ -6,6 +6,7 @@ import com.cojac.storyteller.credit.dto.CreditDTO;
 import com.cojac.storyteller.credit.dto.CreditOrderDTO;
 import com.cojac.storyteller.credit.entity.CreditChargeEntity;
 import com.cojac.storyteller.credit.entity.enums.ChargeStatus;
+import com.cojac.storyteller.credit.event.PaymentConfirmedEvent;
 import com.cojac.storyteller.credit.exception.PaymentAmountMismatchException;
 import com.cojac.storyteller.credit.exception.PaymentFailedException;
 import com.cojac.storyteller.credit.exception.PaymentOrderNotFoundException;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.util.Optional;
@@ -45,6 +47,9 @@ class CreditServiceUnitTest {
 
     @Mock
     private TossPaymentService tossPaymentService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
 
     private ProfileEntity profile;
 
@@ -113,6 +118,7 @@ class CreditServiceUnitTest {
         CreditChargeEntity order = CreditChargeEntity.createPending(profile, "order-1", 1000, 10);
         when(creditChargeRepository.findByOrderId("order-1")).thenReturn(Optional.of(order));
         when(creditChargeRepository.compareAndSetStatus("order-1", ChargeStatus.PENDING, ChargeStatus.SUCCESS)).thenReturn(1);
+        when(creditChargeRepository.applyCreditAtomic("order-1")).thenReturn(1);
 
         ConfirmPaymentRequest request = ConfirmPaymentRequest.builder()
                 .orderId("order-1")
@@ -127,6 +133,7 @@ class CreditServiceUnitTest {
         assertNotNull(result);
         assertEquals(15, result.getCredit());
         verify(tossPaymentService, times(1)).confirmPayment("payment-key-1", "order-1", 1000);
+        verify(eventPublisher, times(1)).publishEvent(new PaymentConfirmedEvent("order-1"));
     }
 
     @Test
@@ -208,5 +215,7 @@ class CreditServiceUnitTest {
         // when & then
         assertThrows(PaymentFailedException.class, () -> creditService.confirmCharge(request));
         assertEquals(5, profile.getCredit());
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(creditChargeRepository, never()).applyCreditAtomic(anyString());
     }
 }
