@@ -2,6 +2,7 @@ package com.cojac.storyteller.common.exception;
 
 import com.cojac.storyteller.book.exception.BookNotFoundException;
 import com.cojac.storyteller.page.exception.PageNotFoundException;
+import com.cojac.storyteller.profile.exception.InsufficientCreditException;
 import com.cojac.storyteller.profile.exception.ProfileNotFoundException;
 import com.cojac.storyteller.response.code.ErrorCode;
 import com.cojac.storyteller.response.dto.ErrorResponseDTO;
@@ -100,6 +101,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(ErrorCode.INVALID_PIN_NUMBER.getStatus().value())
                 .body(new ErrorResponseDTO(ErrorCode.INVALID_PIN_NUMBER));
+    }
+
+    @ExceptionHandler(InsufficientCreditException.class)
+    protected ResponseEntity<ErrorResponseDTO> handleInsufficientCreditException(final InsufficientCreditException e) {
+        log.error("handleInsufficientCreditException : {}", e.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(e.getErrorCode().getStatus().value())
+                .body(new ErrorResponseDTO(e.getErrorCode()));
     }
 
     /**

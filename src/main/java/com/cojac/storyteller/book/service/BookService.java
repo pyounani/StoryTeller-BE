@@ -17,6 +17,7 @@ import com.cojac.storyteller.page.dto.PageDTO;
 import com.cojac.storyteller.page.entity.PageEntity;
 import com.cojac.storyteller.page.repository.batch.BatchPageInsert;
 import com.cojac.storyteller.profile.entity.ProfileEntity;
+import com.cojac.storyteller.profile.exception.InsufficientCreditException;
 import com.cojac.storyteller.profile.exception.ProfileNotFoundException;
 import com.cojac.storyteller.profile.repository.ProfileRepository;
 import com.cojac.storyteller.response.code.ErrorCode;
@@ -63,6 +64,12 @@ public class BookService {
         // 프로필 확인
         ProfileEntity profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new ProfileNotFoundException(ErrorCode.PROFILE_NOT_FOUND));
+
+        // 크레딧 확인 및 차감 (부족하면 OpenAI/DALL-E 호출 전에 즉시 차단)
+        if (profile.getCredit() <= 0) {
+            throw new InsufficientCreditException(ErrorCode.INSUFFICIENT_CREDIT);
+        }
+        profile.deductCredit();
 
         // 나이를 계산 (birthDate 기준)
         int age = calculateAge(profile);

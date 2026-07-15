@@ -89,6 +89,7 @@ public class BookServiceTest {
                 .name("Test name")
                 .pinNumber("1234")
                 .birthDate(LocalDate.of(2010, 1, 1))
+                .credit(5)
                 .user(localUserEntity)
                 .build();
         profileEntity = profileRepository.save(profileEntity);
