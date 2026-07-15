@@ -30,4 +30,17 @@ public class AsyncConfig {
         return new SimpleAsyncTaskExecutor();
     }
 
+    // 결제 보상 기록(PaymentRollbackHandler)은 신뢰성이 중요해 s3ServiceTaskExecutor(스레드 무제한 생성)를
+    // 그대로 재사용하지 않고, mailServiceTaskExecutor처럼 크기가 제한된 풀을 별도로 둔다
+    @Bean(name = "paymentServiceTaskExecutor")
+    public ThreadPoolTaskExecutor paymentServiceTaskExecutor() {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(4);
+        taskExecutor.setMaxPoolSize(8);
+        taskExecutor.setQueueCapacity(50);
+        taskExecutor.setThreadNamePrefix("paymentExecutor-");
+        taskExecutor.initialize();
+        return taskExecutor;
+    }
+
 }
