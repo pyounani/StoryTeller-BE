@@ -69,10 +69,6 @@ public class ProfileEntity {
         this.pinNumber = profileDTO.getPinNumber();
     }
 
-    public void deductCredit() {
-        this.credit -= 1;
-    }
-
     public void chargeCredit(int amount) {
         this.credit += amount;
     }

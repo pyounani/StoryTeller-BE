@@ -65,11 +65,11 @@ public class BookService {
         ProfileEntity profile = profileRepository.findById(profileId)
                 .orElseThrow(() -> new ProfileNotFoundException(ErrorCode.PROFILE_NOT_FOUND));
 
-        // 크레딧 확인 및 차감 (부족하면 OpenAI/DALL-E 호출 전에 즉시 차단)
-        if (profile.getCredit() <= 0) {
+        // 크레딧 확인 및 차감 (원자적 조건부 UPDATE로 동시 요청 시 lost update 방지, Issue 1)
+        int updatedRows = profileRepository.deductCreditAtomic(profileId);
+        if (updatedRows == 0) {
             throw new InsufficientCreditException(ErrorCode.INSUFFICIENT_CREDIT);
         }
-        profile.deductCredit();
 
         // 나이를 계산 (birthDate 기준)
         int age = calculateAge(profile);
