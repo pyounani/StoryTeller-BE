@@ -97,6 +97,7 @@ class BookServiceUnitTest {
         // given
         String prompt = "Create a story";
         when(profileRepository.findById(profile.getId())).thenReturn(Optional.of(profile));
+        when(profileRepository.deductCreditAtomic(profile.getId())).thenReturn(1);
         when(openAIService.generateStory(any(), any())).thenReturn("Title: Test Book\nContent: This is a test story.");
         when(imageGenerationService.generateAndUploadBookCoverImage(any())).thenReturn("coverImageUrl");
         when(bookRepository.save(any())).thenReturn(book);
@@ -132,6 +133,7 @@ class BookServiceUnitTest {
         String prompt = "Create a story";
         profile = ProfileEntity.builder().id(1).birthDate(LocalDate.of(2015, 1, 1)).credit(0).build();
         when(profileRepository.findById(profile.getId())).thenReturn(Optional.of(profile));
+        when(profileRepository.deductCreditAtomic(profile.getId())).thenReturn(0);
 
         // when & then
         assertThrows(InsufficientCreditException.class, () -> bookService.createBook(prompt, profile.getId()));
