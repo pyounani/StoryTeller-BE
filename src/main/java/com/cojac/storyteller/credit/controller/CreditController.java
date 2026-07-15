@@ -1,8 +1,10 @@
 package com.cojac.storyteller.credit.controller;
 
 import com.cojac.storyteller.common.swagger.CreditControllerDocs;
-import com.cojac.storyteller.credit.dto.ChargeCreditRequest;
+import com.cojac.storyteller.credit.dto.ConfirmPaymentRequest;
+import com.cojac.storyteller.credit.dto.CreateOrderRequest;
 import com.cojac.storyteller.credit.dto.CreditDTO;
+import com.cojac.storyteller.credit.dto.CreditOrderDTO;
 import com.cojac.storyteller.credit.service.CreditService;
 import com.cojac.storyteller.response.code.ResponseCode;
 import com.cojac.storyteller.response.dto.ResponseDTO;
@@ -25,11 +27,19 @@ public class CreditController implements CreditControllerDocs {
                 .body(new ResponseDTO<>(ResponseCode.SUCCESS_GET_CREDIT_BALANCE, response));
     }
 
-    @PostMapping("/charge")
-    public ResponseEntity<ResponseDTO<CreditDTO>> chargeCredit(@PathVariable Integer profileId, @RequestBody ChargeCreditRequest request) {
-        CreditDTO response = creditService.chargeCredit(profileId, request.getAmount());
+    @PostMapping("/orders")
+    public ResponseEntity<ResponseDTO<CreditOrderDTO>> createOrder(@PathVariable Integer profileId, @RequestBody CreateOrderRequest request) {
+        CreditOrderDTO response = creditService.createOrder(profileId, request.getCreditAmount());
         return ResponseEntity
-                .status(ResponseCode.SUCCESS_CHARGE_CREDIT.getStatus().value())
-                .body(new ResponseDTO<>(ResponseCode.SUCCESS_CHARGE_CREDIT, response));
+                .status(ResponseCode.SUCCESS_CREATE_ORDER.getStatus().value())
+                .body(new ResponseDTO<>(ResponseCode.SUCCESS_CREATE_ORDER, response));
+    }
+
+    @PostMapping("/confirm")
+    public ResponseEntity<ResponseDTO<CreditDTO>> confirmPayment(@PathVariable Integer profileId, @RequestBody ConfirmPaymentRequest request) {
+        CreditDTO response = creditService.confirmCharge(request);
+        return ResponseEntity
+                .status(ResponseCode.SUCCESS_CONFIRM_PAYMENT.getStatus().value())
+                .body(new ResponseDTO<>(ResponseCode.SUCCESS_CONFIRM_PAYMENT, response));
     }
 }

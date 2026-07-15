@@ -11,6 +11,6 @@ import lombok.Setter;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChargeCreditRequest {
-    private Integer amount;
+public class CreateOrderRequest {
+    private Integer creditAmount;
 }

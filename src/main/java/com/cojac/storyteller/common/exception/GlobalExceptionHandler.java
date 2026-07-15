@@ -1,6 +1,9 @@
 package com.cojac.storyteller.common.exception;
 
 import com.cojac.storyteller.book.exception.BookNotFoundException;
+import com.cojac.storyteller.credit.exception.PaymentAmountMismatchException;
+import com.cojac.storyteller.credit.exception.PaymentFailedException;
+import com.cojac.storyteller.credit.exception.PaymentOrderNotFoundException;
 import com.cojac.storyteller.page.exception.PageNotFoundException;
 import com.cojac.storyteller.profile.exception.InsufficientCreditException;
 import com.cojac.storyteller.profile.exception.ProfileNotFoundException;
@@ -106,6 +109,33 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InsufficientCreditException.class)
     protected ResponseEntity<ErrorResponseDTO> handleInsufficientCreditException(final InsufficientCreditException e) {
         log.error("handleInsufficientCreditException : {}", e.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(e.getErrorCode().getStatus().value())
+                .body(new ErrorResponseDTO(e.getErrorCode()));
+    }
+
+    /**
+     * Payment(토스페이먼츠 결제 연동)
+     */
+    @ExceptionHandler(PaymentOrderNotFoundException.class)
+    protected ResponseEntity<ErrorResponseDTO> handlePaymentOrderNotFoundException(final PaymentOrderNotFoundException e) {
+        log.error("handlePaymentOrderNotFoundException : {}", e.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(e.getErrorCode().getStatus().value())
+                .body(new ErrorResponseDTO(e.getErrorCode()));
+    }
+
+    @ExceptionHandler(PaymentAmountMismatchException.class)
+    protected ResponseEntity<ErrorResponseDTO> handlePaymentAmountMismatchException(final PaymentAmountMismatchException e) {
+        log.error("handlePaymentAmountMismatchException : {}", e.getErrorCode().getMessage());
+        return ResponseEntity
+                .status(e.getErrorCode().getStatus().value())
+                .body(new ErrorResponseDTO(e.getErrorCode()));
+    }
+
+    @ExceptionHandler(PaymentFailedException.class)
+    protected ResponseEntity<ErrorResponseDTO> handlePaymentFailedException(final PaymentFailedException e) {
+        log.error("handlePaymentFailedException : {}", e.getErrorCode().getMessage());
         return ResponseEntity
                 .status(e.getErrorCode().getStatus().value())
                 .body(new ErrorResponseDTO(e.getErrorCode()));
