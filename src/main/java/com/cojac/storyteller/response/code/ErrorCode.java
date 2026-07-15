@@ -36,6 +36,11 @@ public enum ErrorCode {
 
 
     /**
+     * 402 PAYMENT_REQUIRED: 크레딧 부족
+     */
+    INSUFFICIENT_CREDIT(HttpStatus.PAYMENT_REQUIRED, "크레딧이 부족합니다."),
+
+    /**
      * 405 METHOD_NOT_ALLOWED: 허용되지 않은 Request Method 호출
      */
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "허용되지 않은 메서드입니다."),

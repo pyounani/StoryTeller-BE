@@ -13,6 +13,7 @@ import com.cojac.storyteller.common.openAI.ImageGenerationService;
 import com.cojac.storyteller.common.openAI.OpenAIService;
 import com.cojac.storyteller.page.repository.batch.BatchPageInsert;
 import com.cojac.storyteller.profile.entity.ProfileEntity;
+import com.cojac.storyteller.profile.exception.InsufficientCreditException;
 import com.cojac.storyteller.profile.exception.ProfileNotFoundException;
 import com.cojac.storyteller.profile.repository.ProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
@@ -74,12 +76,15 @@ class BookServiceUnitTest {
     @Mock
     private BatchBookDelete batchBookDelete;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private ProfileEntity profile;
     private BookEntity book;
 
     @BeforeEach
     void setUp() {
-        profile = ProfileEntity.builder().id(1).birthDate(LocalDate.of(2015, 1, 1)).build();
+        profile = ProfileEntity.builder().id(1).birthDate(LocalDate.of(2015, 1, 1)).credit(5).build();
         book = BookEntity.builder().id(1).profile(profile).title("Test Book").build();
     }
 
@@ -118,6 +123,19 @@ class BookServiceUnitTest {
 
         // when & then
         assertThrows(ProfileNotFoundException.class, () -> bookService.createBook(prompt, profile.getId()));
+    }
+
+    @Test
+    @DisplayName("동화 생성하기 단위 테스트 - 크레딧 부족 예외")
+    void testCreateBook_InsufficientCredit() {
+        // given
+        String prompt = "Create a story";
+        profile = ProfileEntity.builder().id(1).birthDate(LocalDate.of(2015, 1, 1)).credit(0).build();
+        when(profileRepository.findById(profile.getId())).thenReturn(Optional.of(profile));
+
+        // when & then
+        assertThrows(InsufficientCreditException.class, () -> bookService.createBook(prompt, profile.getId()));
+        verify(openAIService, never()).generateStory(any(), any());
     }
 
     /**

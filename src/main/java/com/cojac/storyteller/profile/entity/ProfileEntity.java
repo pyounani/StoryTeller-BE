@@ -33,6 +33,9 @@ public class ProfileEntity {
     @Column(nullable = false)
     private String pinNumber;
 
+    @Column(nullable = false)
+    private Integer credit;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
@@ -41,13 +44,16 @@ public class ProfileEntity {
     @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL)
     private List<BookEntity> books = new ArrayList<>();
 
+    public static final int DEFAULT_FREE_CREDIT = 5;
+
     @Builder
-    public ProfileEntity(Integer id, String name, LocalDate birthDate, String imageUrl, String pinNumber, UserEntity user) {
+    public ProfileEntity(Integer id, String name, LocalDate birthDate, String imageUrl, String pinNumber, Integer credit, UserEntity user) {
         this.id = id; // ID 필드 추가
         this.name = name;
         this.birthDate = birthDate;
         this.imageUrl = imageUrl;
         this.pinNumber = pinNumber;
+        this.credit = credit;
         this.user = user;
     }
 
@@ -61,5 +67,13 @@ public class ProfileEntity {
         this.birthDate = profileDTO.getBirthDate();
         this.imageUrl = profileDTO.getImageUrl();
         this.pinNumber = profileDTO.getPinNumber();
+    }
+
+    public void deductCredit() {
+        this.credit -= 1;
+    }
+
+    public void chargeCredit(int amount) {
+        this.credit += amount;
     }
 }
