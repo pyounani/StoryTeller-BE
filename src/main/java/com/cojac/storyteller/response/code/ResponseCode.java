@@ -65,6 +65,12 @@ public enum ResponseCode {
     SUCCESS_RETRIEVE_SETTING(HttpStatus.OK, "책 설정을 성공적으로 조회했습니다"),
 
     /**
+     * Credit
+     */
+    SUCCESS_GET_CREDIT_BALANCE(HttpStatus.OK, "크레딧 잔액을 성공적으로 조회했습니다"),
+    SUCCESS_CHARGE_CREDIT(HttpStatus.OK, "크레딧을 성공적으로 충전했습니다"),
+
+    /**
      * Custom status for empty data lists
      */
     SUCCESS_RETRIEVE_EMPTY_LIST(HttpStatus.OK, "데이터 조회를 성공했으나, 목록이 비어 있습니다.");
